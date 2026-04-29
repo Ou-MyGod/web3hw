@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HelloWorld 合約互動</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.15.0/ethers.umd.min.js" type="application/javascript"></script>
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --panel: #111827;
+      --border: #1e2d45;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'Space Mono', monospace;
+      --sans: 'Noto Sans TC', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid rgba(0,212,255,0.3);
+      padding: 4px 14px;
+      border-radius: 2px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: var(--mono);
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -1px;
+      margin-bottom: 10px;
+    }
+
+    h1 span {
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(0,212,255,0.4);
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Card */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .card:hover { border-color: rgba(0,212,255,0.2); }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      opacity: 0.6;
+    }
+
+    .card-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* Info rows */
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+
+    .info-key {
+      font-family: var(--mono);
+      color: var(--muted);
+      min-width: 140px;
+      flex-shrink: 0;
+    }
+
+    .info-val {
+      font-family: var(--mono);
+      color: var(--accent);
+      word-break: break-all;
+      font-size: 12px;
+    }
+
+    .info-val.white { color: var(--text); }
+
+    /* Status dot */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    .dot.connected {
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    #statusText {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Message display */
+    .message-display {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 18px;
+      color: #fff;
+      text-align: center;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 1px;
+      word-break: break-all;
+      margin: 16px 0;
+      transition: color 0.3s;
+    }
+
+    .message-display.loading { color: var(--muted); font-size: 13px; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 6px;
+      border: none;
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0,212,255,0.3);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid rgba(0,212,255,0.4);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(0,212,255,0.08);
+      border-color: var(--accent);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    /* Input */
+    .input-group { margin-bottom: 16px; }
+
+    .input-label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+    }
+
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    /* Log */
+    .log-box {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      max-height: 220px;
+      overflow-y: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .log-box::-webkit-scrollbar { width: 4px; }
+    .log-box::-webkit-scrollbar-track { background: transparent; }
+    .log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .log-entry { display: flex; gap: 10px; align-items: flex-start; }
+    .log-time { color: var(--muted); flex-shrink: 0; }
+    .log-msg { color: var(--text); word-break: break-all; }
+    .log-msg.success { color: var(--green); }
+    .log-msg.error { color: var(--red); }
+    .log-msg.info { color: var(--accent); }
+
+    /* Network warning */
+    .network-warning {
+      display: none;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+
+    /* divider */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0;
+    }
+
+    .section-title {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="badge">Sepolia Testnet · Ethers.js v6</div>
+    <h1>Hello<span>World</span> dApp</h1>
+    <p class="subtitle">透過 MetaMask 與部署在 Sepolia 測試網的智能合約互動</p>
+  </header>
+
+  <!-- Contract Info -->
+  <div class="card">
+    <div class="card-label">合約資訊 · Contract Info</div>
+    <div class="info-row">
+      <span class="info-key">Contract Address</span>
+      <span class="info-val" id="displayAddress">— 請填入您的合約地址 —</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Contract Creator</span>
+      <span class="info-val" id="displayCreator">— 請填入您的錢包地址 —</span>
+    </div>
+    <div class="info-row">
+      <span class="info-key">Network</span>
+      <span class="info-val white">Sepolia Testnet (Chain ID: 11155111)</span>
+    </div>
+  </div>
+
+  <!-- Connect -->
+  <div class="card">
+    <div class="card-label">錢包連接 · Wallet</div>
+
+    <div class="status-row">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">尚未連接 MetaMask</span>
+    </div>
+
+    <div class="network-warning" id="networkWarning">
+      ⚠️ 請切換到 <strong>Sepolia 測試網</strong>，目前網路不正確。
+    </div>
+
+    <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">
+      🦊 連接 MetaMask
+    </button>
+  </div>
+
+  <!-- Read -->
+  <div class="card">
+    <div class="card-label">讀取合約 · Read</div>
+    <p class="section-title">當前鏈上訊息</p>
+    <div class="message-display loading" id="messageDisplay">
+      請先連接錢包以讀取訊息
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="readBtn" onclick="readMessage()" disabled>
+        ↻ 重新讀取
+      </button>
+    </div>
+  </div>
+
+  <!-- Write -->
+  <div class="card">
+    <div class="card-label">更新合約 · Write</div>
+    <div class="input-group">
+      <label class="input-label" for="newMessage">新訊息內容 · New Message</label>
+      <input type="text" id="newMessage" placeholder="輸入你想寫入鏈上的訊息..." maxlength="200"/>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="writeBtn" onclick="updateMessage()" disabled>
+        ⚡ 送出交易
+      </button>
+    </div>
+    <p style="margin-top:12px; font-size:12px; color:var(--muted);">
+      ⚠️ 此操作將發送一筆交易，需要支付少量 Sepolia ETH 作為 Gas 費用。
+    </p>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="card-label">交易日誌 · Log</div>
+    <div class="log-box" id="logBox">
+      <div class="log-entry">
+        <span class="log-time">--:--:--</span>
+        <span class="log-msg info">等待連接錢包...</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ============================================================
+  //  ⚙️  請修改以下兩個值為你自己的合約資訊
+  // ============================================================
+  const CONTRACT_ADDRESS = "0x7EF2e0048f5bAeDe046f6BF797943daF4ED8CB47";
+  const CONTRACT_CREATOR = "bc1qyg255y0pxxq7gj5vn4pzz9mcesl5nxdxff0dm0";
+  // ============================================================
+
+  const CONTRACT_ABI = [
+    {
+      "inputs": [],
+      "name": "message",
+      "outputs": [{ "internalType": "string", "name": "", "type": "string" }],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [{ "internalType": "string", "name": "_newMessage", "type": "string" }],
+      "name": "updateMessage",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ];
+
+  const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
+
+  let provider, signer, contract;
+
+  // Update display
+  document.getElementById("displayAddress").textContent =
+    CONTRACT_ADDRESS !== "YOUR_CONTRACT_ADDRESS_HERE" ? CONTRACT_ADDRESS : "— 請填入您的合約地址 —";
+  document.getElementById("displayCreator").textContent =
+    CONTRACT_CREATOR !== "YOUR_WALLET_ADDRESS_HERE" ? CONTRACT_CREATOR : "— 請填入您的錢包地址 —";
+
+  function log(msg, type = "info") {
+    const box = document.getElementById("logBox");
+    const now = new Date();
+    const t = [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map(n => String(n).padStart(2, "0")).join(":");
+    const entry = document.createElement("div");
+    entry.className = "log-entry";
+    entry.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+    box.appendChild(entry);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function checkNetwork() {
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    const warning = document.getElementById("networkWarning");
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      warning.style.display = "block";
+      log("⚠️ 網路錯誤，請切換到 Sepolia 測試網", "error");
+      return false;
+    }
+    warning.style.display = "none";
+    return true;
+  }
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      log("❌ 未偵測到 MetaMask，請先安裝", "error");
+      alert("請先安裝 MetaMask！\nhttps://metamask.io");
+      return;
+    }
+
+    try {
+      log("🦊 正在請求 MetaMask 授權...", "info");
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+
+      const ok = await checkNetwork();
+      if (!ok) return;
+
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+      const address = await signer.getAddress();
+
+      contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      // Update UI
+      document.getElementById("statusDot").classList.add("connected");
+      document.getElementById("statusText").textContent = `已連接：${address.slice(0,6)}...${address.slice(-4)}`;
+      document.getElementById("connectBtn").disabled = true;
+      document.getElementById("connectBtn").textContent = "✓ 已連接";
+      document.getElementById("readBtn").disabled = false;
+      document.getElementById("writeBtn").disabled = false;
+
+      log(`✅ 錢包已連接：${address}`, "success");
+
+      // Auto read
+      await readMessage();
+
+      // Listen for network change
+      window.ethereum.on("chainChanged", () => { location.reload(); });
+
+    } catch (err) {
+      log(`❌ 連接失敗：${err.message}`, "error");
+    }
+  }
+
+  async function readMessage() {
+    if (!contract) { log("❌ 請先連接錢包", "error"); return; }
+    try {
+      const display = document.getElementById("messageDisplay");
+      display.className = "message-display loading";
+      display.textContent = "讀取中...";
+      log("📖 正在讀取鏈上訊息...", "info");
+
+      const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+      const msg = await readContract.message();
+
+      display.className = "message-display";
+      display.textContent = msg;
+      log(`📩 當前訊息：「${msg}」`, "success");
+    } catch (err) {
+      log(`❌ 讀取失敗：${err.message}`, "error");
+    }
+  }
+
+  async function updateMessage() {
+    if (!contract) { log("❌ 請先連接錢包", "error"); return; }
+    const newMsg = document.getElementById("newMessage").value.trim();
+    if (!newMsg) { log("⚠️ 請輸入訊息內容", "error"); return; }
+
+    try {
+      document.getElementById("writeBtn").disabled = true;
+      document.getElementById("writeBtn").textContent = "⏳ 等待確認...";
+      log(`🚀 發送交易，新訊息：「${newMsg}」`, "info");
+
+      const tx = await contract.updateMessage(newMsg);
+      log(`📤 交易已送出：${tx.hash}`, "info");
+      log("⏳ 等待區塊確認...", "info");
+
+      await tx.wait();
+      log(`✅ 交易已確認！Hash: ${tx.hash}`, "success");
+      document.getElementById("newMessage").value = "";
+
+      await readMessage();
+    } catch (err) {
+      if (err.code === 4001) {
+        log("🚫 使用者拒絕交易", "error");
+      } else {
+        log(`❌ 交易失敗：${err.message}`, "error");
+      }
+    } finally {
+      document.getElementById("writeBtn").disabled = false;
+      document.getElementById("writeBtn").textContent = "⚡ 送出交易";
+    }
+  }
+</script>
+</body>
+</html>
