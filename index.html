@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web3 智能合約互動練習</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+    <h1>Web3 智能合約互動網頁</h1>
+    
+    <button id="connectBtn">連接 MetaMask 錢包</button>
+    <p>目前錢包地址: <span id="walletAddress">未連接</span></p>
+    
+    <hr>
+
+    <h3>目前合約內儲存的文字：</h3>
+    <p id="currentValue">載入中...</p>
+    <button id="getBtn">重新讀取</button>
+
+    <hr>
+
+    <h3>改變合約變數：</h3>
+    <input type="text" id="newValueInput" placeholder="輸入新的文字...">
+    <button id="setBtn">寫入區塊鏈 (需付 Gas 費)</button>
+
+    <script>
+        // 1. 設定你的合約資訊（請替換成你自己的）
+        const contractAddress = "YOUR_CONTRACT_ADDRESS"; 
+        const contractABI = [
+            "function storedData() view returns (string)",
+            "function set(string x) public",
+            "function get() view returns (string)"
+        ]; // 這裡用簡化版 ABI 即可
+
+        let provider;
+        let signer;
+        let contract;
+
+        // 初始化連線
+        async function init() {
+            if (typeof window.ethereum !== 'undefined') {
+                provider = new ethers.BrowserProvider(window.ethereum);
+                // 嘗試讀取合約初始值
+                contract = new ethers.Contract(contractAddress, contractABI, provider);
+                readVariable();
+            } else {
+                alert("請先安裝 MetaMask 錢包！");
+            }
+        }
+
+        // 連接錢包
+        async function connectWallet() {
+            try {
+                signer = await provider.getSigner();
+                const address = await signer.getAddress();
+                document.getElementById("walletAddress").innerText = address;
+                // 用有簽章的 signer 重新宣告合約，這樣才能寫入資料
+                contract = new ethers.Contract(contractAddress, contractABI, signer);
+                alert("錢包連接成功！");
+            } catch (error) {
+                console.error("連接失敗", error);
+            }
+        }
+
+        // 讀取合約變數 (過關條件 1)
+        async function readVariable() {
+            try {
+                const val = await contract.get();
+                document.getElementById("currentValue").innerText = val;
+            } catch (error) {
+                console.error("讀取失敗", error);
+            }
+        }
+
+        // 寫入合約變數 (過關條件 1)
+        async function setVariable() {
+            const newValue = document.getElementById("newValueInput").value;
+            if (!newValue) return alert("請輸入文字！");
+            if (!signer) return alert("請先連接錢包！");
+
+            try {
+                document.getElementById("setBtn").innerText = "交易發送中...";
+                const tx = await contract.set(newValue);
+                
+                // 等待區塊鏈確認交易
+                await tx.wait(); 
+                alert("修改成功！");
+                document.getElementById("setBtn").innerText = "寫入區塊鏈 (需付 Gas 費)";
+                readVariable(); // 重新整理顯示的數值
+            } catch (error) {
+                console.error("交易失敗", error);
+                document.getElementById("setBtn").innerText = "寫入區塊鏈 (需付 Gas 費)";
+            }
+        }
+
+        // 綁定按鈕事件
+        document.getElementById("connectBtn").addEventListener("click", connectWallet);
+        document.getElementById("getBtn").addEventListener("click", readVariable);
+        document.getElementById("setBtn").addEventListener("click", setVariable);
+
+        // 網頁載入時執行
+        window.onload = init;
+    </script>
+</body>
+</html>
