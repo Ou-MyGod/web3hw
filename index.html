@@ -25,13 +25,15 @@
     <button id="setBtn">寫入區塊鏈 (需付 Gas 費)</button>
 
     <script>
-        // 1. 設定你的合約資訊（請替換成你自己的）
-        const contractAddress = "YOUR_CONTRACT_ADDRESS"; 
+        // 【已自動替換】這裡填入你提供給我的合約地址
+        const contractAddress = "0x8E39aDc64282c9bAC7715E6ff6bF0dd692E93492"; 
+
+        // 【已自動替換】這是簡化版的 ABI，ethers.js 完全看得懂，不需去 Remix 複製複雜的 JSON 囉！
         const contractABI = [
             "function storedData() view returns (string)",
             "function set(string x) public",
             "function get() view returns (string)"
-        ]; // 這裡用簡化版 ABI 即可
+        ];
 
         let provider;
         let signer;
@@ -63,17 +65,18 @@
             }
         }
 
-        // 讀取合約變數 (過關條件 1)
+        // 讀取合約變數
         async function readVariable() {
             try {
                 const val = await contract.get();
                 document.getElementById("currentValue").innerText = val;
             } catch (error) {
-                console.error("讀取失敗", error);
+                console.error("讀取失敗，請確認你的 MetaMask 是否切換到該合約對應的測試網（如 Sepolia）", error);
+                document.getElementById("currentValue").innerText = "讀取失敗，請檢查網路切換";
             }
         }
 
-        // 寫入合約變數 (過關條件 1)
+        // 寫入合約變數
         async function setVariable() {
             const newValue = document.getElementById("newValueInput").value;
             if (!newValue) return alert("請輸入文字！");
@@ -90,6 +93,7 @@
                 readVariable(); // 重新整理顯示的數值
             } catch (error) {
                 console.error("交易失敗", error);
+                alert("交易失敗，請檢查錢包餘額或是否拒絕了交易");
                 document.getElementById("setBtn").innerText = "寫入區塊鏈 (需付 Gas 費)";
             }
         }
